@@ -8,10 +8,6 @@ import (
 	"os"
 )
 
-// Ensures gofmt doesn't remove the "net" and "os" imports in stage 1 (feel free to remove this!)
-var _ = net.Listen
-var _ = os.Exit
-
 type responseHeader struct {
 	correlationId int32
 }
@@ -21,10 +17,10 @@ type responseMessage struct {
 	header      responseHeader
 }
 
-func (r *responseMessage) Byte() []byte {
+func Byte(message_size, corelation_id []byte) []byte {
 	buff := bytes.Buffer{}
-	binary.Write(&buff, binary.BigEndian, r.messageSize)
-	binary.Write(&buff, binary.BigEndian, r.header.correlationId)
+	binary.Write(&buff, binary.BigEndian, message_size)
+	binary.Write(&buff, binary.BigEndian, corelation_id)
 
 	return buff.Bytes()
 }
@@ -39,13 +35,11 @@ func handleConn(conn net.Conn) {
 		return
 	}
 
-	response := responseMessage{
-		header: responseHeader{
-			correlationId: 7,
-		},
-	}
+	message_size := make([]byte, 4)
 
-	_, err = conn.Write(response.Byte())
+	corelation_id := buff[8:12]
+
+	_, err = conn.Write(Byte(message_size, corelation_id))
 	if err != nil {
 		fmt.Println("Error writing into conn: ", err.Error())
 	}
