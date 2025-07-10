@@ -8,19 +8,26 @@ import (
 	"os"
 )
 
-type responseHeader struct {
-	correlationId int32
+type Request struct {
+	request_api_key     int16
+	request_api_version int16
+	client_id           *string
+	tag_buffer          []int32
+	message_size        int32
+	correlation_id      int32
 }
 
 type responseMessage struct {
-	messageSize int32
-	header      responseHeader
+	messageSize   int32
+	correlationId int32
+	error_code    int16
 }
 
-func Byte(message_size, corelation_id []byte) []byte {
+func (r *responseMessage) Byte() []byte {
 	buff := bytes.Buffer{}
-	binary.Write(&buff, binary.BigEndian, message_size)
-	binary.Write(&buff, binary.BigEndian, corelation_id)
+	binary.Write(&buff, binary.BigEndian, r.messageSize)
+	binary.Write(&buff, binary.BigEndian, r.correlationId)
+	binary.Write(&buff, binary.BigEndian, r.error_code)
 
 	return buff.Bytes()
 }
@@ -35,11 +42,16 @@ func handleConn(conn net.Conn) {
 		return
 	}
 
-	message_size := make([]byte, 4)
-
+	message_size := buff[0:4]
 	corelation_id := buff[8:12]
 
-	_, err = conn.Write(Byte(message_size, corelation_id))
+	response := responseMessage{
+		messageSize:   int32(binary.BigEndian.Uint32(message_size)),
+		correlationId: int32(binary.BigEndian.Uint32(corelation_id)),
+		error_code:    35,
+	}
+
+	_, err = conn.Write(response.Byte())
 	if err != nil {
 		fmt.Println("Error writing into conn: ", err.Error())
 	}
